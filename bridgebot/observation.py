@@ -1,11 +1,13 @@
-from bridgepy.card import Card
-from bridgepy.game import Game
-from bridgepy.player import PlayerId
+from bridgepy.bid import Bid
+from bridgepy.card import Card, Rank, Suit
+from bridgepy.game import Game, GameTrick
+from bridgepy.player import PlayerBid, PlayerId, PlayerTrick
 from dataclasses import dataclass
 import numpy as np
 from typing import Literal, Type, TypeVar
 
-from bridgebot.dataencoder import BidEncoder, CardEncoder
+from bridgebot.dataencoder import BidEncoder, CardEncoder, PlayerHandEncoder
+from bridgebot.exception import BridgeObservationGameBidPhaseNotOver, BridgeObservationGameNoBidHasBeenMade
 
 
 ObservationType = TypeVar("ObservationType", bound = "Observation")
@@ -20,24 +22,144 @@ class Observation:
     partner: int
     trick_history: np.ndarray[tuple[Literal[104]], np.dtype[np.int8]]
 
+    def bid_phase(self) -> bool:
+        return self.game_bid_ready == 0
+    
+    def choose_partner_phase(self) -> bool:
+        return self.game_bid_ready == 1 and self.partner_card == 0
+    
+    def trick_phase(self) -> bool:
+        return self.game_bid_ready == 1 and self.partner_card != 0 and self.trick_history[-2] == 0
+    
+    def get_player_hand(self) -> list[Card]:
+        return PlayerHandEncoder.decode(self.player_hand)
+    
+    def get_bid_history(self) -> list[PlayerBid]:
+        return [PlayerBid(
+            # replace actual player id with player index
+            player_id = PlayerId(str(self.bid_history[2 * i])),
+            bid = BidEncoder.decode(self.bid_history[2 * i + 1] - 1),
+        ) for i in range(len(self.bid_history) // 2) if self.bid_history[2 * i] != 0]
+    
+    def get_partner_card(self) -> Card | None:
+        if self.partner_card == 0:
+            return None
+        return CardEncoder.decode(self.partner_card - 1)
+    
+    def get_partner(self) -> PlayerId | None:
+        if self.partner == 0:
+            return None
+        # replace actual player id with player index
+        return PlayerId(str(self.partner))
+    
+    def get_trick_history(self) -> list[GameTrick]:
+        game_tricks: list[GameTrick] = []
+        for i in range(0, len(self.trick_history), 8):
+            encoded_game_trick = self.trick_history[i : i + 8]
+            if encoded_game_trick[0] == 0:
+                break
+            player_tricks: list[PlayerTrick] = []
+            for j in range(0, len(encoded_game_trick), 2):
+                encoded_player_id = encoded_game_trick[j]
+                if encoded_player_id == 0:
+                    break
+                encoded_card = encoded_game_trick[j + 1]
+                player_tricks.append(PlayerTrick(
+                    # replace actual player id with player index
+                    player_id = PlayerId(str(encoded_player_id)),
+                    trick = CardEncoder.decode(encoded_card - 1),
+                ))
+            game_tricks.append(GameTrick(
+                player_tricks = player_tricks,
+            ))
+        return game_tricks
+    
+    def get_valid_bids(self) -> list[Bid]:
+        if not self.bid_phase():
+            return []
+        latest_bid: Bid | None = self.find_latest_bid()
+        all_available_bids: list[Bid] = [Bid(level, suit) for level in range(1, 8) for suit in [*Suit, None]]
+        if latest_bid is None:
+            return all_available_bids
+        if latest_bid == Bid(level = 7, suit = None):
+            return []
+        return [bid for bid in all_available_bids if bid > latest_bid]
+    
+    def find_latest_bid(self) -> Bid | None:
+        for player_bid in reversed(self.get_bid_history()):
+            if player_bid.bid is not None:
+                return player_bid.bid
+        return None
+    
+    def get_valid_partner_cards(self) -> list[Card]:
+        if not self.choose_partner_phase():
+            return []
+        cards: list[Card] = self.get_player_hand()
+        all_available_cards: list[Card] = [Card(rank, suit) for rank in Rank for suit in Suit]
+        return list(set(all_available_cards) - set(cards))
+    
+    def get_valid_trick_cards(self) -> list[Card]:
+        if not self.trick_phase():
+            return []
+        trick_history: list[GameTrick] = self.get_trick_history()
+        cards: list[Card] = self.get_player_hand()
+        trump_suit: Suit | None = self.trump_suit()
+        if len(trick_history) == 0:
+            if trump_suit is None:
+                return cards
+            if all([card.suit == trump_suit for card in cards]):
+                return cards
+            return [card for card in cards if card.suit != trump_suit]
+        latest_trick: GameTrick = trick_history[-1]
+        trump_broken: bool = self.trump_broken()
+        if latest_trick.ready_for_trick_winner():
+            if trump_suit is None:
+                return cards
+            if trump_broken:
+                return cards
+            if all([card.suit == trump_suit for card in cards]):
+                return cards
+            return [card for card in cards if card.suit != trump_suit]
+        first_suit: Suit = latest_trick.first_suit()
+        cards_following_first_suit: list[Card] = [card for card in  cards if card.suit == first_suit]
+        if trump_suit is None:
+            if len(cards_following_first_suit) == 0:
+                return cards
+            return cards_following_first_suit
+        if len(cards_following_first_suit) == 0:
+            return cards
+        return cards_following_first_suit
+    
+    def trump_suit(self) -> Suit | None:
+        if self.bid_phase():
+            raise BridgeObservationGameBidPhaseNotOver()
+        latest_bid: Bid | None = self.find_latest_bid()
+        if latest_bid is None:
+            raise BridgeObservationGameNoBidHasBeenMade()
+        return latest_bid.suit
+    
+    def trump_broken(self) -> bool:
+        if not self.trick_phase():
+            return False
+        trump_suit: Suit | None = self.trump_suit()
+        if trump_suit is None:
+            return False
+        for game_trick in reversed(self.get_trick_history()):
+            for player_trick in reversed(game_trick.player_tricks):
+                if player_trick.trick.suit == trump_suit:
+                    return True
+        return False
+
     @classmethod
     def build(cls: Type[ObservationType], game: Game, player_id: PlayerId | None) -> ObservationType:
-        player_turn = Observation.__encode_player_turn(game, player_id)
-        player_hand = Observation.__encode_player_hand(game, player_id)
-        bid_history = Observation.__encode_bid_history(game)
-        game_bid_ready = Observation.__encode_game_bid_ready(game)
-        partner_card = Observation.__encode_partner_card(game)
-        partner = Observation.__encode_partner(game)
-        trick_history = Observation.__encode_trick_history(game)
-
         return cls(
-            player_turn = player_turn,
-            player_hand = player_hand,
-            bid_history = bid_history,
-            game_bid_ready = game_bid_ready,
-            partner_card = partner_card,
-            partner = partner,
-            trick_history = trick_history,
+            player_turn = Observation.__encode_player_turn(game, player_id),
+            player_hand = Observation.__encode_player_hand(game, player_id),
+            bid_history = Observation.__encode_bid_history(game),
+            game_bid_ready = Observation.__encode_game_bid_ready(game),
+            partner_card = Observation.__encode_partner_card(game),
+            partner = Observation.__encode_partner(game),
+            trick_history = Observation.__encode_trick_history(game),
         )
     
     @staticmethod
@@ -58,10 +180,7 @@ class Observation:
             player_hand: list[Card] = []
         else:
             player_hand: list[Card] = game._Game__find_player_hand(player_id).cards
-        one_hot_player_hand = np.zeros(52, dtype=np.int8)
-        for card in player_hand:
-            one_hot_player_hand[CardEncoder.encode(card)] = 1
-        return one_hot_player_hand
+        return PlayerHandEncoder.encode(player_hand)
     
     @staticmethod
     def __encode_bid_history(game: Game) -> np.ndarray[tuple[Literal[210]], np.dtype[np.int8]]:

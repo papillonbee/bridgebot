@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="bridgebot",
-    version="0.0.0",
+    version="0.0.1",
     author="Papan Yongmalwong",
     author_email="papillonbee@gmail.com",
     description="bridgebot is a python package for building floating bridge bot!",
@@ -22,7 +22,6 @@ setuptools.setup(
     python_requires='>=3.10',
     install_requires=[
         "gymnasium==1.0.0",
-        "stable-baselines3==2.4.1",
         "bridgepy==0.0.11",
     ],
     keywords=[

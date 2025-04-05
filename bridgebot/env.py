@@ -3,6 +3,7 @@ from bridgepy.game import Game
 from bridgepy.player import PlayerId, PlayerScore
 from dataclasses import asdict
 import gymnasium as gym
+from typing_extensions import override
 
 from bridgebot.action import Action
 from bridgebot.exception import BridgeEnvGameAlreadyTerminalState, BridgeEnvGameNotReadyToStart
@@ -80,6 +81,7 @@ class BridgeEnv(gym.Env):
                     break
         return player_id
     
+    @override
     def reset(self, *, seed = None, options = None) -> tuple[dict, dict]:
         super().reset(seed = seed)
 
@@ -88,6 +90,7 @@ class BridgeEnv(gym.Env):
 
         return self._get_observation(), {}
 
+    @override
     def step(self, action: int) -> tuple[dict, float, bool, bool, dict]:
         reward: float = 0
         done: bool = False

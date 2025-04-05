@@ -7,7 +7,7 @@ from enum import IntEnum
 from typing import Type, TypeVar
 
 from bridgebot.dataencoder import BidEncoder, CardEncoder
-from bridgebot.exception import BridgeEnvGameInvalidAction
+from bridgebot.exception import BridgeActionInvalid
 
 
 ActionType = TypeVar("ActionType", bound = "Action")
@@ -38,7 +38,7 @@ class Action:
         elif self.__update_reward():
             pass
         else:
-            raise BridgeEnvGameInvalidAction()
+            raise BridgeActionInvalid()
     
     def __bid_action(self) -> bool:
         return ActionRange.BID_START <= self.value <= ActionRange.BID_END
@@ -69,4 +69,5 @@ class Action:
     
     @classmethod
     def encode_update_reward(cls: Type[ActionType]) -> ActionType:
-        return cls(value = ActionRange.UPDATE_REWARD)
+        value: int = 0
+        return cls(value = value + ActionRange.UPDATE_REWARD)
