@@ -108,7 +108,7 @@ class BridgeEnv(gym.Env):
         player_scores: list[PlayerScore] = self.game.scores()
         for player_score in player_scores:
             if player_score.player_id == player_id:
-                reward = player_score.score
+                reward += player_score.score
                 if player_score.won:
                     reward += 10
                 break
