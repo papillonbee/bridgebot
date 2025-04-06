@@ -22,15 +22,16 @@ setuptools.setup(
     python_requires='>=3.10',
     install_requires=[
         "gymnasium==1.0.0",
-        "bridgepy==0.0.11",
+        "bridgepy==0.0.13",
     ],
     keywords=[
         "reinforcement learning",
         "floating bridge",
-        "singaporean brdige",
+        "singaporean bridge",
     ],
 )
 
-# pip3 install setuptools wheel
+# pip3 install -e .
+# pip3 install setuptools wheel twine
 # python3 setup.py sdist bdist_wheel
 # twine upload dist/*

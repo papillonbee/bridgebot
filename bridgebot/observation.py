@@ -1,7 +1,7 @@
 from bridgepy.bid import Bid
 from bridgepy.card import Card, Rank, Suit
 from bridgepy.game import Game, GameTrick
-from bridgepy.player import PlayerBid, PlayerId, PlayerTrick
+from bridgepy.player import PlayerBid, PlayerHand, PlayerId, PlayerTrick
 from dataclasses import dataclass
 import numpy as np
 from typing import Literal, Type, TypeVar
@@ -31,8 +31,11 @@ class Observation:
     def trick_phase(self) -> bool:
         return self.game_bid_ready == 1 and self.partner_card != 0 and self.trick_history[-2] == 0
     
-    def get_player_hand(self) -> list[Card]:
-        return PlayerHandEncoder.decode(self.player_hand)
+    def get_player_hand(self) -> PlayerHand:
+        return PlayerHand(
+            player_id = PlayerId(str(self.player_turn)),
+            cards = PlayerHandEncoder.decode(self.player_hand),
+        )
     
     def get_bid_history(self) -> list[PlayerBid]:
         return [PlayerBid(
@@ -94,7 +97,7 @@ class Observation:
     def get_valid_partner_cards(self) -> list[Card]:
         if not self.choose_partner_phase():
             return []
-        cards: list[Card] = self.get_player_hand()
+        cards: list[Card] = self.get_player_hand().cards
         all_available_cards: list[Card] = [Card(rank, suit) for rank in Rank for suit in Suit]
         return list(set(all_available_cards) - set(cards))
     
@@ -102,7 +105,7 @@ class Observation:
         if not self.trick_phase():
             return []
         trick_history: list[GameTrick] = self.get_trick_history()
-        cards: list[Card] = self.get_player_hand()
+        cards: list[Card] = self.get_player_hand().cards
         trump_suit: Suit | None = self.trump_suit()
         if len(trick_history) == 0:
             if trump_suit is None:
@@ -179,7 +182,7 @@ class Observation:
         if player_id is None:
             player_hand: list[Card] = []
         else:
-            player_hand: list[Card] = game._Game__find_player_hand(player_id).cards
+            player_hand: list[Card] = game.find_player_hand(player_id).cards
         return PlayerHandEncoder.encode(player_hand)
     
     @staticmethod

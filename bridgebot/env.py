@@ -85,7 +85,7 @@ class BridgeEnv(gym.Env):
     def reset(self, *, seed = None, options = None) -> tuple[dict, dict]:
         super().reset(seed = seed)
 
-        self.game._Game__reset_game()
+        self.game.reset_game()
         self.updated_reward = {player_id: False for player_id in self.game.player_ids}
 
         return self._get_observation(), {}
