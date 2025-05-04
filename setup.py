@@ -22,6 +22,7 @@ setuptools.setup(
     python_requires='>=3.10',
     install_requires=[
         "ray[rllib]==2.45.0",
+        "torch==2.2.2",
         "bridgepy==0.0.13",
     ],
     keywords=[
