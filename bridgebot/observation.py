@@ -2,10 +2,11 @@ from bridgepy.bid import Bid
 from bridgepy.card import Card, Rank, Suit
 from bridgepy.game import Game, GameTrick
 from bridgepy.player import PlayerBid, PlayerHand, PlayerId, PlayerTrick
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 import numpy as np
 from typing import Literal, Type, TypeVar
 
+from bridgebot.action import Action
 from bridgebot.dataencoder import BidEncoder, CardEncoder, PlayerHandEncoder
 from bridgebot.exception import BridgeObservationGameBidPhaseNotOver, BridgeObservationGameNoBidHasBeenMade
 
@@ -165,6 +166,24 @@ class Observation:
             trick_history = Observation.__encode_trick_history(game),
         )
     
+    @classmethod
+    def build_from_dict(cls: Type[ObservationType], observation: dict) -> ObservationType:
+        field_names = [field.name for field in fields(Observation)]
+        obs = {k: v for k, v in observation.items() if k in field_names}
+        return cls(**obs)
+    
+    @classmethod
+    def build_dummy(cls: Type[ObservationType]) -> ObservationType:
+        return cls(
+            player_turn = 0,
+            player_hand = np.zeros(52, np.int8),
+            bid_history = np.zeros(210, np.int8),
+            game_bid_ready = 0,
+            partner_card = 0,
+            partner = 0,
+            trick_history = np.zeros(104, np.int8),
+        )
+    
     @staticmethod
     def __encode_player_turn(game: Game, player_id: PlayerId | None) -> int:
         """
@@ -246,3 +265,26 @@ class Observation:
         1-player 1, 2-player 2, 3-player 3, 4-player 4
         """
         return game.player_ids.index(player_id) + 1
+
+    def get_action_masks(self) -> np.ndarray[tuple[Literal[140]], np.dtype[np.int8]]:
+        mask = np.zeros(140, dtype = np.int8)
+        if self.bid_phase():
+            valid_bids: list[Bid] = self.get_valid_bids()
+            pass_bid: list[None] = [None]
+            actions: list[Action] = [Action.encode_bid(bid) for bid in pass_bid + valid_bids]
+            for action in actions:
+                mask[action.value] = 1
+        if self.choose_partner_phase():
+            cards: list[Card] = self.get_valid_partner_cards()
+            actions: list[Action] = [Action.encode_choose_partner(card) for card in cards]
+            for action in actions:
+                mask[action.value] = 1
+        if self.trick_phase():
+            cards: list[Card] = self.get_valid_trick_cards()
+            actions: list[Action] = [Action.encode_trick(card) for card in cards]
+            for action in actions:
+                mask[action.value] = 1
+        return mask
+    
+    def get_dummy_action_masks(self) -> np.ndarray[tuple[Literal[140]], np.dtype[np.int8]]:
+        return np.zeros(140, dtype = np.int8)

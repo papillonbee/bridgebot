@@ -20,7 +20,7 @@ class BridgeAgent(ABC):
     
     def predict(self, observation: dict | Observation) -> int | Action:
         if isinstance(observation, dict):
-            action: Action = self.__predict(Observation(**observation))
+            action: Action = self.__predict(Observation.build_from_dict(observation))
             return action.value
         if isinstance(observation, Observation):
             action: Action = self.__predict(observation)
@@ -37,7 +37,7 @@ class BridgeAgent(ABC):
         if observation.trick_phase():
             card: Card = self._trick(observation)
             return Action.encode_trick(card)
-        return Action.encode_update_reward()
+        return Action.encode_illegal()
 
     @abstractmethod
     def _bid(self, observation: Observation) -> Bid | None:

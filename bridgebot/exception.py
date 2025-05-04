@@ -24,3 +24,7 @@ class BridgeObservationGameNoBidHasBeenMade(BizException):
 class BridgeAgentInvalidObservationType(BizException):
     def __init__(self):
         super().__init__(11006, "Invalid observation type!")
+
+class BridgeActionCannotChoosePartnerAsSelf(BizException):
+    def __init__(self):
+        super().__init__(11007, "Cannot choose partner as self!")
