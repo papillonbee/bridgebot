@@ -4,13 +4,14 @@
 
 | Name                     |    Stmts |     Miss |   Cover |   Missing |
 |------------------------- | -------: | -------: | ------: | --------: |
-| bridgebot/action.py      |       58 |        1 |     98% |        41 |
-| bridgebot/agent.py       |       59 |        7 |     88% |25-28, 44, 48, 52 |
+| bridgebot/action.py      |       56 |        4 |     93% |35, 41, 69-70 |
+| bridgebot/agent.py       |       59 |        8 |     86% |25-28, 40, 44, 48, 52 |
 | bridgebot/dataencoder.py |       59 |        2 |     97% |    17, 22 |
-| bridgebot/env.py         |       71 |        5 |     93% |44, 100, 104-106 |
-| bridgebot/exception.py   |       19 |        6 |     68% |6, 10, 14, 18, 22, 26 |
-| bridgebot/observation.py |      164 |       29 |     82% |48-50, 53-56, 82, 88, 99, 106, 113-115, 121-125, 132-134, 138, 141, 146, 150-154 |
-|                **TOTAL** |  **430** |   **50** | **88%** |           |
+| bridgebot/env.py         |       87 |       11 |     87% |48, 95, 101-103, 139, 142, 145-146, 149-150 |
+| bridgebot/exception.py   |       22 |        7 |     68% |6, 10, 14, 18, 22, 26, 30 |
+| bridgebot/observation.py |      194 |       23 |     88% |49-51, 54-57, 83, 89, 100, 107, 113, 115, 121, 125, 130-132, 139, 142, 147, 150, 193, 202 |
+| bridgebot/util.py        |       25 |        0 |    100% |           |
+|                **TOTAL** |  **502** |   **55** | **89%** |           |
 
 
 ## Setup coverage badge
