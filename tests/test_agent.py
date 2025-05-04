@@ -4,11 +4,12 @@ from bridgepy.player import PlayerId
 
 from bridgebot.agent import BridgeRandomAgent
 from bridgebot.env import BridgeEnv
+from bridgebot.util import GameUtil
 
 
 class TestAgent(TestCase):
 
-    def test_RandomAgent(self):
+    def test_BridgeRandomAgent(self):
         # create game with 4 players
         game_id = GameId("1")
         player_id1 = PlayerId("1")
@@ -27,13 +28,17 @@ class TestAgent(TestCase):
         agent = BridgeRandomAgent()
 
         # play game until done
-        observation, _ = env.reset()
+        obs, _ = env.reset()
         done = False
         while not done:
-            action = agent.predict(observation)
-            observation, reward, done, _, _ = env.step(action)
+            player_id: PlayerId | None = GameUtil.get_next_player_id(env.game)
+            if player_id is None:
+                break
+            action = agent.predict(obs[player_id.value])
+            obs, rewards, dones, _, _ = env.step({player_id.value: action})
             # all actions should be valid, no negative rewards expected
-            self.assertTrue(reward >= 0)
+            self.assertTrue(all(reward >= 0 for reward in rewards.values()))
+            done = dones["__all__"]
 
 if __name__ == '__main__':
     main()

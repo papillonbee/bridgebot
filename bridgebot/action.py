@@ -7,7 +7,7 @@ from enum import IntEnum
 from typing import Type, TypeVar
 
 from bridgebot.dataencoder import BidEncoder, CardEncoder
-from bridgebot.exception import BridgeActionInvalid
+from bridgebot.exception import BridgeActionCannotChoosePartnerAsSelf, BridgeActionInvalid
 
 
 ActionType = TypeVar("ActionType", bound = "Action")
@@ -19,7 +19,7 @@ class ActionRange(IntEnum):
     PARTNER_END = 87
     TRICK_START = 88
     TRICK_END = 139
-    UPDATE_REWARD = 140
+    ILLEGAL = -1
 
 @dataclass
 class Action:
@@ -31,12 +31,12 @@ class Action:
             game.bid(PlayerBid(player_id, bid))
         elif self.__choose_partner_action():
             card: Card = CardEncoder.decode(self.value - ActionRange.PARTNER_START)
+            if card in game.find_player_hand(player_id).cards:
+                raise BridgeActionCannotChoosePartnerAsSelf()
             game.choose_partner(player_id, card)
         elif self.__trick_action():
             card: Card = CardEncoder.decode(self.value - ActionRange.TRICK_START)
             game.trick(PlayerTrick(player_id, card))
-        elif self.__update_reward():
-            pass
         else:
             raise BridgeActionInvalid()
     
@@ -48,9 +48,6 @@ class Action:
 
     def __trick_action(self) -> bool:
         return ActionRange.TRICK_START <= self.value <= ActionRange.TRICK_END
-
-    def __update_reward(self) -> bool:
-        return self.value == ActionRange.UPDATE_REWARD
 
     @classmethod
     def encode_bid(cls: Type[ActionType], bid: Bid | None) -> ActionType:
@@ -68,6 +65,6 @@ class Action:
         return cls(value = value + ActionRange.TRICK_START)
     
     @classmethod
-    def encode_update_reward(cls: Type[ActionType]) -> ActionType:
+    def encode_illegal(cls: Type[ActionType]) -> ActionType:
         value: int = 0
-        return cls(value = value + ActionRange.UPDATE_REWARD)
+        return cls(value = value + ActionRange.ILLEGAL)
